@@ -9,9 +9,11 @@ out float3 Color)
     float ratio = Resolution.x / Resolution.y;
     float2 tuv = uv;
     tuv -= 0.5;
-    
+    // limit time
+    float maxTime = 2000;
+    float limitedTime = maxTime - abs(fmod(Time, 2.0 * maxTime) - maxTime);
     // Noise calculation (simplified to avoid nested functions)
-    float2 noiseP = float2(Time * 0.1, tuv.x * tuv.y);
+    float2 noiseP = float2(limitedTime * 0.1, tuv.x * tuv.y);
     float2 i = floor(noiseP);
     float2 f = frac(noiseP);
     float2 u = f * f * (3.0 - 2.0 * f);
@@ -51,7 +53,7 @@ out float3 Color)
     // Wave warp with sin
     float frequency = 5.0;
     float amplitude = 30.0;
-    float speed = Time * 2.0;
+    float speed = limitedTime * 2.0;
     tuv.x += sin(tuv.y * frequency + speed) / amplitude;
     tuv.y += sin(tuv.x * frequency * 1.5 + speed) / (amplitude * 0.5);
     

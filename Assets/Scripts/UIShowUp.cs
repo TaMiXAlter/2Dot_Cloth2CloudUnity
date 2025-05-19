@@ -59,16 +59,13 @@ public class UIShowUp : MonoBehaviour
 
     public void HandleColorDetected(bool isVisible)
     {
+        if (isFading)
+            return;
         if (isFadingOut && isVisible)
         {
             queueFadeIn = true;
             return;
         }
-        if (isFading)
-            return;
-
-        if (currentCoroutine != null)
-            StopCoroutine(currentCoroutine);
 
         currentCoroutine = StartCoroutine(isVisible ? FadeInSequence() : FadeOutAll());
     }
@@ -93,7 +90,6 @@ public class UIShowUp : MonoBehaviour
 
     private IEnumerator FadeOutAll()
     {
-        isFading = true;
         isFadingOut = true;
 
         if (currentFliter == null)
@@ -109,7 +105,6 @@ public class UIShowUp : MonoBehaviour
         yield return text2Fade;
         yield return text3Fade;
 
-        isFading = false;
         isFadingOut = false;
 
         if (queueFadeIn)
