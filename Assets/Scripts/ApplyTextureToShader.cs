@@ -24,7 +24,7 @@ public class ApplyTextureToShader : MonoBehaviour
     
     // Queue for storing recent colors for temporal averaging
     Queue<Color> recentColors;
-
+    private float lastTriggerTime = 1.0f;
     void Start()
     {
         socketReceiver = SocketReceiver.Instance;
@@ -73,11 +73,12 @@ public class ApplyTextureToShader : MonoBehaviour
         // Apply final color to material
         targetRenderer.material.SetColor("_CameraColor", colorTemp);
 
-        bool isValid = IsColorValid(cameraColor);
-        if (isValid != lastColorValid) 
+         bool isValid = IsColorValid(cameraColor);
+        if (isValid != lastColorValid && Time.time - lastTriggerTime > 0.5f)
         {
             OnColorDetected?.Invoke(isValid);
             lastColorValid = isValid;
+            lastTriggerTime = Time.time; // 记录触发时间
         }
     }
     
@@ -155,8 +156,10 @@ public class ApplyTextureToShader : MonoBehaviour
         return colorCount.OrderByDescending(kv => kv.Value).First().Key;
     }
 
-    bool IsColorValid(Color color)
+    private bool IsColorValid(Color color)
     {
-        return color != Color.white;
+        Color.RGBToHSV(color, out float h, out float s, out float v);
+        // 示例：若颜色饱和度低于阈值，视为无效
+        return s > 0.3f && v > 0.5f;
     }
 }

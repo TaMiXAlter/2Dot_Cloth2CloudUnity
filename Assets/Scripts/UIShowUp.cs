@@ -11,7 +11,7 @@ public class UIShowUp : MonoBehaviour
     [SerializeField] private CanvasGroup Text1;
     [SerializeField] private CanvasGroup Text2;
     [SerializeField] private CanvasGroup Text3;
-    
+
     private CanvasGroup currentFliter;
     [Header("動畫時間設定")]
     [SerializeField] private float FliterShowTime = 0.5f;
@@ -34,12 +34,11 @@ public class UIShowUp : MonoBehaviour
     public void SetFadeDuration(float time) => fadeDuration = time;
 
     private bool isFading = false;
-    private bool queueFadeIn = false; 
-    private bool isFadingOut = false; 
+    private bool queueFadeIn = false;
+    private bool isFadingOut = false;
+    private float lastTriggerTime;
     void Start()
     {
-        applyTextureToShader.OnColorDetected += HandleColorDetected;
-
         FliterWaterDrop.alpha = 0;
         FliterWaterDrop.gameObject.SetActive(false);
 
@@ -55,18 +54,29 @@ public class UIShowUp : MonoBehaviour
         Text3.alpha = 0;
         Text3.gameObject.SetActive(false);
 
+        StartCoroutine(DelayedSubscribe());
     }
 
     public void HandleColorDetected(bool isVisible)
     {
+        // 防抖動
+        if (Time.time - lastTriggerTime < 0.5f) return;
+        lastTriggerTime = Time.time;
+
         if (isFading)
             return;
         if (isFadingOut && isVisible)
         {
-            queueFadeIn = true;
+            if (!queueFadeIn) 
+            {
+                queueFadeIn = true;
+            }
             return;
         }
-
+        if (currentCoroutine != null)
+        {
+            StopCoroutine(currentCoroutine);
+        }
         currentCoroutine = StartCoroutine(isVisible ? FadeInSequence() : FadeOutAll());
     }
     private IEnumerator FadeInSequence()
@@ -90,7 +100,7 @@ public class UIShowUp : MonoBehaviour
 
     private IEnumerator FadeOutAll()
     {
-        isFadingOut = true;
+         isFadingOut = true;
 
         if (currentFliter == null)
             currentFliter = GetRandomFliter(); 
@@ -111,6 +121,10 @@ public class UIShowUp : MonoBehaviour
         {
             queueFadeIn = false;
             currentCoroutine = StartCoroutine(FadeInSequence());
+        }
+        else
+        {
+            queueFadeIn = false; 
         }
     }
 
@@ -150,6 +164,12 @@ public class UIShowUp : MonoBehaviour
         else FliterWaterDrop.gameObject.SetActive(false);
 
         return selected;
+    }
+    
+    private IEnumerator DelayedSubscribe()
+    {
+        yield return new WaitForEndOfFrame();
+        applyTextureToShader.OnColorDetected += HandleColorDetected;
     }
     #endregion
 }
