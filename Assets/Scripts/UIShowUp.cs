@@ -33,9 +33,8 @@ public class UIShowUp : MonoBehaviour
     public void SetText2ShowTime(float time) => Text2ShowTime = time;
     public void SetFadeDuration(float time) => fadeDuration = time;
 
-    private bool isFading = false;
-    private bool queueFadeIn = false;
-    private bool isFadingOut = false;
+    private bool isFading = false,isFadingOut = false;
+    private bool queueFadeIn = false,queueFadeOut = false;
     private float lastTriggerTime;
     void Start()
     {
@@ -63,14 +62,14 @@ public class UIShowUp : MonoBehaviour
         if (Time.time - lastTriggerTime < 0.5f) return;
         lastTriggerTime = Time.time;
 
-        if (isFading)
+        if (isFading && !isVisible)
+        {
+            if (!queueFadeOut) queueFadeOut = true;
             return;
+        }
         if (isFadingOut && isVisible)
         {
-            if (!queueFadeIn) 
-            {
-                queueFadeIn = true;
-            }
+            if (!queueFadeIn)  queueFadeIn = true;
             return;
         }
         if (currentCoroutine != null)
@@ -96,6 +95,8 @@ public class UIShowUp : MonoBehaviour
         yield return StartCoroutine(FadeIn(Text3, fadeDuration));
 
         isFading = false;
+        if (queueFadeOut)StartCoroutine(FadeOutAll());
+        queueFadeOut = false;
     }
 
     private IEnumerator FadeOutAll()
@@ -116,16 +117,9 @@ public class UIShowUp : MonoBehaviour
         yield return text3Fade;
 
         isFadingOut = false;
-
-        if (queueFadeIn)
-        {
-            queueFadeIn = false;
-            currentCoroutine = StartCoroutine(FadeInSequence());
-        }
-        else
-        {
-            queueFadeIn = false; 
-        }
+        if (queueFadeIn) currentCoroutine = StartCoroutine(FadeInSequence());
+        queueFadeIn = false; 
+       
     }
 
     #region utils
