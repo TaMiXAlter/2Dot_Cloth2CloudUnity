@@ -1,3 +1,4 @@
+// ApplyTextureToShader.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,12 +7,12 @@ using UnityEngine.Events;
 
 public class ApplyTextureToShader : MonoBehaviour
 {
-    
     [SerializeField, Range(0f, 1f)]
-    private float colorSmoothingFactor = 0.95f; // Higher value for more smoothing
+    private float colorSmoothingFactor = 0.95f; 
     
     [SerializeField, Range(0, 10)]
-    private int averagingFrames = 5; // Number of frames to average for smoothing
+    private int averagingFrames = 5; 
+
 
     public event Action<bool> OnColorDetected;
 
@@ -22,9 +23,8 @@ public class ApplyTextureToShader : MonoBehaviour
     Color targetColor;
     bool lastColorValid = false;
     
-    // Queue for storing recent colors for temporal averaging
-    Queue<Color> recentColors;
-    private float lastTriggerTime = 1.0f;
+    Queue<Color> recentColors; 
+    private float lastEventTriggerTime = 0f; 
     void Start()
     {
         socketReceiver = SocketReceiver.Instance;
@@ -34,16 +34,16 @@ public class ApplyTextureToShader : MonoBehaviour
         {
             Debug.LogError("Require socketReceiver and meshRenderer");
             Destroy(this);
+            return;
         }
 
-        colorTemp = Color.white;
-        targetColor = Color.white;
-        recentColors = new Queue<Color>();
+        colorTemp = Color.white; 
+        targetColor = Color.white; 
+        recentColors = new Queue<Color>(); 
         
-        // Initialize queue with starting color
         for (int i = 0; i < averagingFrames; i++)
         {
-            recentColors.Enqueue(Color.white);
+            recentColors.Enqueue(Color.white); 
         }
     }
 
@@ -51,45 +51,36 @@ public class ApplyTextureToShader : MonoBehaviour
     {
         if (!socketReceiver.outputTexture) return;
 
-        // Get the dominant color from the camera
-        Color cameraColor = GetDominantColor(socketReceiver.outputTexture);
+        Color cameraColor = GetDominantColor(socketReceiver.outputTexture); 
 
-        if (cameraColor == Color.white && colorTemp == Color.white)
+        if (cameraColor == Color.white && colorTemp == Color.white && !lastColorValid) 
             return;
             
-        // Add to recent colors and remove oldest if needed
-        recentColors.Enqueue(cameraColor);
+        recentColors.Enqueue(cameraColor); 
         if (recentColors.Count > averagingFrames)
         {
-            recentColors.Dequeue();
+            recentColors.Dequeue(); 
         }
 
-        // Calculate average of recent colors for temporal smoothing
-        targetColor = CalculateAverageColor(recentColors.ToArray());
-        
-        // Apply exponential smoothing for transition
-        colorTemp = ExponentialSmoothing(colorTemp, targetColor, colorSmoothingFactor);
-        
-        // Apply final color to material
-        targetRenderer.material.SetColor("_CameraColor", colorTemp);
+        targetColor = CalculateAverageColor(recentColors.ToArray()); 
+        colorTemp = ExponentialSmoothing(colorTemp, targetColor, colorSmoothingFactor); 
+        targetRenderer.material.SetColor("_CameraColor", colorTemp); 
 
-         bool isValid = IsColorValid(cameraColor);
-        if (isValid != lastColorValid && Time.time - lastTriggerTime > 0.5f)
+        bool isValid = IsColorValid(cameraColor); 
+       
+        if (isValid != lastColorValid && Time.time - lastEventTriggerTime > 0.5f) 
         {
             OnColorDetected?.Invoke(isValid);
-            lastColorValid = isValid;
-            lastTriggerTime = Time.time; // 记录触发时间
+            lastColorValid = isValid; 
+            lastEventTriggerTime = Time.time; 
         }
     }
     
-    // Exponential smoothing formula - smoother than linear interpolation
     Color ExponentialSmoothing(Color currentValue, Color targetValue, float alpha)
     {
-        // Alpha closer to 1 means more weight on the previous value (smoother)
-        return Color.Lerp(targetValue, currentValue, alpha);
+        return Color.Lerp(targetValue, currentValue, alpha); 
     }
     
-    // Calculate average of an array of colors
     Color CalculateAverageColor(Color[] colors)
     {
         if (colors.Length == 0) return Color.white;
@@ -101,65 +92,38 @@ public class ApplyTextureToShader : MonoBehaviour
             g += color.g;
             b += color.b;
         }
-        return new Color(r / colors.Length, g / colors.Length, b / colors.Length);
-    }
-
-    Color GetAverageColor(Texture2D tex)
-    {
-        Color[] pixels = tex.GetPixels();
-        float r = 0f, g = 0f, b = 0f;
-        int count = 0;
-
-        foreach (Color pixel in pixels)
-        {
-            if (pixel.r + pixel.g + pixel.b > 0.2f)
-            {
-                r += pixel.r;
-                g += pixel.g;
-                b += pixel.b;
-                count++;
-            }
-        }
-
-        if (count == 0) return Color.white;
-        return new Color(r / count, g / count, b / count);
+        return new Color(r / colors.Length, g / colors.Length, b / colors.Length); 
     }
 
     Color GetDominantColor(Texture2D tex)
     {
-        Color[] pixels = tex.GetPixels();
-        Dictionary<Color, int> colorCount = new Dictionary<Color, int>();
-        float threshold = 0.2f; // 排除太黑的像素
-        int quantizeLevel = 16; // 顏色量化等級，調整以平衡準確度與效率
+        Color[] pixels = tex.GetPixels(); 
+        Dictionary<Color, int> colorCount = new Dictionary<Color, int>(); 
+        float threshold = 0.2f; 
+        int quantizeLevel = 16; 
 
         foreach (Color pixel in pixels)
         {
-            // 排除接近黑色的像素
-            if (pixel.r + pixel.g + pixel.b < threshold) continue;
+            if (pixel.r + pixel.g + pixel.b < threshold) continue; 
 
-            // 量化顏色
             Color key = new Color(
                 Mathf.Floor(pixel.r * quantizeLevel) / quantizeLevel,
                 Mathf.Floor(pixel.g * quantizeLevel) / quantizeLevel,
                 Mathf.Floor(pixel.b * quantizeLevel) / quantizeLevel
-            );
+            ); //
 
             if (colorCount.ContainsKey(key))
-                colorCount[key]++;
+                colorCount[key]++; 
             else
-                colorCount[key] = 1;
+                colorCount[key] = 1; 
         }
 
-        if (colorCount.Count == 0) return Color.white;
-
-        // 找出出現次數最多的顏色
-        return colorCount.OrderByDescending(kv => kv.Value).First().Key;
+        if (colorCount.Count == 0) return Color.white; 
+        return colorCount.OrderByDescending(kv => kv.Value).First().Key; 
     }
 
     private bool IsColorValid(Color color)
     {
-        Color.RGBToHSV(color, out float h, out float s, out float v);
-        // 示例：若颜色饱和度低于阈值，视为无效
-        return s > 0.3f && v > 0.5f;
+        return color != Color.white;
     }
 }

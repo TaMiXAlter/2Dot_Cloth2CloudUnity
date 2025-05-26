@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,8 +22,6 @@ public class UIShowUp : MonoBehaviour
 
     [SerializeField] private ApplyTextureToShader applyTextureToShader;
 
-    private Coroutine currentCoroutine;
-
     public float GetFliterShowTime() => FliterShowTime;
     public float GetText1ShowTime() => Text1ShowTime;
     public float GetText2ShowTime() => Text2ShowTime;
@@ -33,7 +32,8 @@ public class UIShowUp : MonoBehaviour
     public void SetText2ShowTime(float time) => Text2ShowTime = time;
     public void SetFadeDuration(float time) => fadeDuration = time;
 
-    private bool isFading = false,isFadingOut = false;
+    private bool isTextShow = false;
+    private bool isFading = false, isFadingOut = false;
     private bool queueFadeIn = false,queueFadeOut = false;
     private float lastTriggerTime;
     void Start()
@@ -69,14 +69,13 @@ public class UIShowUp : MonoBehaviour
         }
         if (isFadingOut && isVisible)
         {
-            if (!queueFadeIn)  queueFadeIn = true;
+            if (!queueFadeIn) queueFadeIn = true;
             return;
         }
-        if (currentCoroutine != null)
-        {
-            StopCoroutine(currentCoroutine);
-        }
-        currentCoroutine = StartCoroutine(isVisible ? FadeInSequence() : FadeOutAll());
+
+        if (isVisible == isTextShow) return;
+        StartCoroutine(isVisible ? FadeInSequence() : FadeOutAll());
+        isTextShow = isVisible;
     }
     private IEnumerator FadeInSequence()
     {
@@ -95,17 +94,17 @@ public class UIShowUp : MonoBehaviour
         yield return StartCoroutine(FadeIn(Text3, fadeDuration));
 
         isFading = false;
-        if (queueFadeOut)StartCoroutine(FadeOutAll());
-        queueFadeOut = false;
+        if (queueFadeOut){
+            queueFadeOut = false;
+            StartCoroutine(FadeOutAll());
+        }
+           
+        
     }
 
     private IEnumerator FadeOutAll()
     {
-         isFadingOut = true;
-
-        if (currentFliter == null)
-            currentFliter = GetRandomFliter(); 
-
+        isFadingOut = true;
         Coroutine fliterFade = StartCoroutine(FadeOut(currentFliter, fadeDuration));
         Coroutine text1Fade = StartCoroutine(FadeOut(Text1, fadeDuration));
         Coroutine text2Fade = StartCoroutine(FadeOut(Text2, fadeDuration));
@@ -117,8 +116,11 @@ public class UIShowUp : MonoBehaviour
         yield return text3Fade;
 
         isFadingOut = false;
-        if (queueFadeIn) currentCoroutine = StartCoroutine(FadeInSequence());
-        queueFadeIn = false; 
+        if (queueFadeIn) {
+            queueFadeIn = false;
+            StartCoroutine(FadeInSequence());
+        }
+ 
        
     }
 
@@ -128,8 +130,7 @@ public class UIShowUp : MonoBehaviour
         cg.gameObject.SetActive(true);
         cg.alpha = 0f;
         float time = 0f;
-        while (time < duration)
-        {
+        while (time < duration){
             cg.alpha = Mathf.Lerp(0f, targetAlpha, time / duration);
             time += Time.deltaTime;
             yield return null;
